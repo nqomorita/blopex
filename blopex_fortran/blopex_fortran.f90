@@ -19,6 +19,9 @@ contains
     real(c_double) :: tol
     real(c_double), target :: A(NZ)
     external :: blopex_fortran_opA
+    external :: blopex_fortran_opT
+
+    if(N < n_eigs) n_eigs = N
 
     N_hold = N
     M_hold = n_eigs
@@ -26,7 +29,7 @@ contains
     item_hold  => item
     A_hold => A
 
-    call blopex_lobpcg_solve_c(n_eigs, maxit, tol, N, blopex_fortran_opA)
+    call blopex_lobpcg_solve_c(n_eigs, maxit, tol, N, blopex_fortran_opA, blopex_fortran_opT)
   end subroutine blopex_lobpcg_solve
 
 end module blopex_fortran_driver
@@ -51,3 +54,13 @@ subroutine blopex_fortran_opA(dum, a, b)
     enddo
   enddo
 end subroutine blopex_fortran_opA
+
+subroutine blopex_fortran_opT(dum, a, b)
+  use blopex_fortran_hold_vars
+  use iso_c_binding
+  implicit none
+  integer(c_int) :: dum
+  !integer(c_int) :: dum, i, jS, jE, j, in, k, shift
+  real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
+  b = a
+end subroutine blopex_fortran_opT

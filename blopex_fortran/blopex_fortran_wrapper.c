@@ -21,7 +21,7 @@ BlopexInt dpotrf_ (
 
 void (*callback_matmult_opA)(void *, void*, void*);
 //void (*callback_matmult_opB)(void *, void*, void*);
-//void (*callback_matmult_opT)(void *, void*, void*);
+void (*callback_matmult_opT)(void *, void*, void*);
 
 void OperatorAMultiVector(void *data, void *x, void *y) {
   serial_Multi_Vector* a;
@@ -34,17 +34,22 @@ void OperatorAMultiVector(void *data, void *x, void *y) {
 //void OperatorBMultiVector(void * data, void * x, void * y) {
 //}
 
-//void OperatorTMultiVector(void * data, void * x, void * y) {
-//}
+void OperatorTMultiVector(void *data, void *x, void *y) {
+  serial_Multi_Vector* a;
+  serial_Multi_Vector* b;
+  a = (serial_Multi_Vector*)x;
+  b = (serial_Multi_Vector*)y;
+  callback_matmult_opT(data, a->data, b->data);
+}
 
 void blopex_lobpcg_solve_c_(
     int    *n_eigs,       /* number of eigenvalues             */
     int    *maxit,
     double *tol,
     int    *mat_n,
-    void   *matmult_opA  /* Fortran routine for operator A    */
+    void   *matmult_opA,  /* Fortran routine for operator A    */
     //void *matmult_opB, /* Fortran routine for operator B    */
-    //void *matmult_opT, /* Fortran routine for operator T    */
+    void   *matmult_opT /* Fortran routine for operator T    */
   ) {
   int                        ierr;         /* for PETSc return code        */
   mv_MultiVectorPtr          eigenvectors; /* the eigenvectors             */
@@ -61,7 +66,7 @@ void blopex_lobpcg_solve_c_(
 
   callback_matmult_opA = matmult_opA;
   //callback_matmult_opB = matmult_opB;
-  //callback_matmult_opT = matmult_opT;
+  callback_matmult_opT = matmult_opT;
 
   blap_fn.dpotrf = dpotrf_;
   blap_fn.dsygv = dsygv_;
@@ -85,8 +90,8 @@ void blopex_lobpcg_solve_c_(
     OperatorAMultiVector,
     NULL, //&aux_data,
     NULL, //OperatorBMultiVector,
-    NULL, //&aux_data,
-    NULL, //OperatorTMultiVector,
+    &aux_data,
+    OperatorTMultiVector,
     NULL,             /*input-matrix Y */
     blap_fn,          /*input-lapack functions */
     lobpcg_tol,       /*input-tolerances */
