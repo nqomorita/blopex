@@ -57,8 +57,6 @@ void blopex_lobpcg_solve_c_(
   data_struct                aux_data;     /* auxillary data               */
   serial_Multi_Vector* x;
 
-  //printf("monolis_lobpcg_solve_c_main_\n");
-
   iterations = 0;
 
   callback_matmult_opA = matmult_opA;
