@@ -53,6 +53,7 @@ BlopexInt serial_Multi_VectorPrint( serial_Multi_Vector *vector, char * tag, Blo
 
 BlopexInt serial_Multi_VectorSetConstantValues(serial_Multi_Vector *v,double value);
 BlopexInt serial_Multi_VectorSetRandomValues(serial_Multi_Vector *v , BlopexInt seed);
+BlopexInt serial_Multi_VectorSetRandomValuesNormalized(serial_Multi_Vector *v , BlopexInt seed);
 BlopexInt serial_Multi_VectorCopy( serial_Multi_Vector *x , serial_Multi_Vector *y);
 BlopexInt serial_Multi_VectorScale( double alpha , serial_Multi_Vector *y, BlopexInt *mask  );
 BlopexInt serial_Multi_VectorAxpy( double alpha , serial_Multi_Vector *x , serial_Multi_Vector *y);

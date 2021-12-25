@@ -3,7 +3,7 @@ program main
   use blopex_fortran_driver
   implicit none
   integer(4) :: N, NZ
-  integer(4) :: n_eigs, maxit
+  integer(4) :: n_eigs, maxit, loglevel
   integer(4), allocatable :: index(:), item(:)
   real(8) :: tol
   real(8), allocatable :: A(:)
@@ -11,20 +11,19 @@ program main
 
   write(*,"(a)")"* blopex fortran driver"
 
-  call get_input_file_name(fin)
+  call get_input_arg(fin, n_eigs, maxit, loglevel, tol)
 
   call input_from_matrix_market_csr(fin, N, NZ, index, item, A)
 
-  n_eigs = 5
-  maxit  = 100000
-  tol    = 1.0d-4
-  call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol)
+  call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel)
 
 contains
 
-  subroutine get_input_file_name(fin)
+  subroutine get_input_arg(fin, n_eigs, maxit, loglevel, tol)
     implicit none
     integer(4) :: count
+    integer(4) :: n_eigs, maxit, loglevel
+    real(8) :: tol
     character :: fin*100
 
     count = iargc()
@@ -33,7 +32,19 @@ contains
     else
       stop "please enter input file name"
     endif
-  end subroutine get_input_file_name
+
+    open(10, file = "setting.dat", status = "old")
+      read(10,*)n_eigs
+      read(10,*)maxit
+      read(10,*)tol
+      read(10,*)loglevel
+    close(10)
+
+    write(*,"(a,i12)")     "* n_eigs  :", n_eigs
+    write(*,"(a,i12)")     "* maxiter :", maxit
+    write(*,"(a,1pe12.5)") "* tol     :", tol
+    write(*,"(a,i12)")     "* loglevel:", loglevel
+  end subroutine get_input_arg
 
   subroutine input_from_matrix_market_mm(fin, N, A)
     implicit none

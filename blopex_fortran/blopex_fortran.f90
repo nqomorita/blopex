@@ -13,11 +13,11 @@ module blopex_fortran_driver
 
 contains
 
-  subroutine blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol)
+  subroutine blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel)
     implicit none
     integer(c_int) :: N, NZ
     integer(c_int), target :: index(0:N), item(NZ)
-    integer(c_int) :: n_eigs, maxit, mat_n
+    integer(c_int) :: n_eigs, maxit, mat_n, loglevel
     real(c_double) :: tol
     real(c_double), target :: A(NZ)
     external :: blopex_fortran_opA
@@ -33,7 +33,8 @@ contains
 
     call set_preconditioning(N, NZ, index, item, A, Diag)
 
-    call blopex_lobpcg_solve_c(n_eigs, maxit, tol, N, blopex_fortran_opA, blopex_fortran_opT)
+    call blopex_lobpcg_solve_c(n_eigs, maxit, tol, N, &
+    & blopex_fortran_opA, blopex_fortran_opT, loglevel)
   end subroutine blopex_lobpcg_solve
 
   subroutine set_preconditioning(N, NZ, index, item, A, Diag)
@@ -53,6 +54,7 @@ contains
         in = item(j)
         if(i == in)then
           Diag(i) = 1.0d0/A(j)
+          !Diag(i) = A(j)
         endif
       enddo
     enddo
@@ -87,11 +89,51 @@ subroutine blopex_fortran_opT(dum, a, b)
   implicit none
   integer(c_int) :: dum, i, j, shift
   real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
-  !b = a
-  do i = 1, M_hold
-    shift = N_hold*(i-1)
-    do j = 1, N_hold
-      b(j+shift) = a(j+shift)*Diag(j)
-    enddo
-  enddo
+
+b = a
+
+!  !do k = 1, M_hold
+!    do i = 1, N
+!      ST = a(i)
+!      jS = index(i-1) + 1
+!      jE = index(i  )
+!      do j = jS, jE
+!        jn = item(j)
+!        if(jn < i)then
+!          ST = ST - A(j)*a(jn)
+!        endif
+!      enddo
+!      a(i) = ST*Diag(i)
+!    enddo
+!
+!    !do i = 1, N
+!    !  a()
+!    !enddo
+!
+!    do i = N, 1, -1
+!      ST = 0.0d0
+!      jS = index(i-1) + 1
+!      jE = index(i  )
+!      do j = jE, jS, -1
+!        jn = item(j)
+!        if(i < jn)then
+!          ST = ST + A(j)*XT(jn)
+!        endif
+!      enddo
+!      !Y(i) = Y(i) - XT(k)
+!    enddo
+!  !enddo
+!
+!  !if(.false.)then
+!  !  b = a
+!  !else
+!  !  do i = 1, M_hold
+!  !    shift = N_hold*(i-1)
+!  !    do j = 1, N_hold
+!  !      b(j+shift) = a(j+shift)*Diag(j)
+!  !    enddo
+!  !  enddo
+!  !else
+!
+!  !endif
 end subroutine blopex_fortran_opT

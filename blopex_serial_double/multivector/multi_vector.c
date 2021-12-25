@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
 
 void complex_multiply(double* A, double* B, double* C);
 void complex_add(double* A, double* B, double* C);
@@ -166,7 +167,7 @@ BlopexInt
 serial_Multi_VectorSetRandomValues( serial_Multi_Vector *v, BlopexInt seed)
 {
    double  *vector_data = serial_Multi_VectorData(v);
-   BlopexInt      size        = serial_Multi_VectorSize(v);
+   BlopexInt      size  = serial_Multi_VectorSize(v);
    BlopexInt      i, j, start_offset, end_offset;
 
    srand48(seed);
@@ -178,6 +179,36 @@ serial_Multi_VectorSetRandomValues( serial_Multi_Vector *v, BlopexInt seed)
 
       for (j=start_offset; j < end_offset; j++)
          vector_data[j]= 2.0 * drand48() - 1.0;
+   }
+
+   return 0;
+}
+
+BlopexInt
+serial_Multi_VectorSetRandomValuesNormalized( serial_Multi_Vector *v, BlopexInt seed)
+{
+   double  *vector_data = serial_Multi_VectorData(v);
+   BlopexInt      size  = serial_Multi_VectorSize(v);
+   BlopexInt      i, j, start_offset, end_offset;
+   double  sum;
+
+   srand48(seed);
+
+   for (i = 0; i < v->num_active_vectors; i++)
+   {
+      start_offset = v->active_indices[i]*size;
+      end_offset = start_offset+size;
+
+      sum = 0.0;
+      for (j=start_offset; j < end_offset; j++){
+         vector_data[j]= 2.0 * drand48() - 1.0;
+         sum = sum + vector_data[j]*vector_data[j];
+      }
+      sum = sqrt(sum);
+
+      for (j=start_offset; j < end_offset; j++){
+         vector_data[j]= vector_data[j]/sum;
+      }
    }
 
    return 0;

@@ -49,7 +49,8 @@ void blopex_lobpcg_solve_c_(
     int    *mat_n,
     void   *matmult_opA,  /* Fortran routine for operator A    */
     //void *matmult_opB, /* Fortran routine for operator B    */
-    void   *matmult_opT /* Fortran routine for operator T    */
+    void   *matmult_opT, /* Fortran routine for operator T    */
+    int    *log_level
   ) {
   int                        ierr;         /* for PETSc return code        */
   mv_MultiVectorPtr          eigenvectors; /* the eigenvectors             */
@@ -72,14 +73,15 @@ void blopex_lobpcg_solve_c_(
   blap_fn.dsygv = dsygv_;
 
   lobpcg_tol.absolute = *tol;
-  lobpcg_tol.relative = *tol;
+  lobpcg_tol.relative = 1.0e-12;
 
   eigs  = (double *)malloc(sizeof(double)*(*n_eigs));
   resid = (double *)malloc(sizeof(double)*(*n_eigs));
 
   x = serial_Multi_VectorCreate(*mat_n, *n_eigs);
   serial_Multi_VectorInitialize(x);
-  serial_Multi_VectorSetRandomValues(x, 1);
+  //serial_Multi_VectorSetRandomValues(x, 1);
+  serial_Multi_VectorSetRandomValuesNormalized(x, 1);
 
   SerialSetupInterpreter(&ii);
   eigenvectors = mv_MultiVectorWrap(&ii, x, 0);
@@ -90,13 +92,13 @@ void blopex_lobpcg_solve_c_(
     OperatorAMultiVector,
     NULL, //&aux_data,
     NULL, //OperatorBMultiVector,
-    &aux_data,
-    OperatorTMultiVector,
+    NULL, //&aux_data,
+    NULL, //OperatorTMultiVector,
     NULL,             /*input-matrix Y */
     blap_fn,          /*input-lapack functions */
     lobpcg_tol,       /*input-tolerances */
-    *maxit,            /*input-max iterations */
-    2,                /*input-verbosity level */
+    *maxit,           /*input-max iterations */
+    *log_level,       /*input-verbosity level */
     &iterations,      /*output-actual iterations */
     eigs,             /*output-eigenvalues */
     NULL,             /*output-eigenvalues history */
