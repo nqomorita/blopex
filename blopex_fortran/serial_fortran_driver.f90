@@ -45,7 +45,7 @@ contains
 
     do i = 1, n_eigs
       write(cnum,"(i0)")i
-      open(20, file = "output/eigen_value."//trim(cnum)//".txt", status = "replace")
+      open(20, file = "output/eigen_vector."//trim(cnum)//".txt", status = "replace")
       write(20,"(i8)")N
       do j = 1, N
         write(20, "(1pe12.4)")eigen_vec(j,i)
