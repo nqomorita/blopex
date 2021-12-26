@@ -13,13 +13,16 @@ module blopex_fortran_driver
 
 contains
 
-  subroutine blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel)
+  subroutine blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
+      & eigen_val, eigen_vec)
     implicit none
     integer(c_int) :: N, NZ
     integer(c_int), target :: index(0:N), item(NZ)
     integer(c_int) :: n_eigs, maxit, mat_n, loglevel
     real(c_double) :: tol
     real(c_double), target :: A(NZ)
+    real(c_double) :: eigen_val(n_eigs)
+    real(c_double) :: eigen_vec(N,n_eigs)
     external :: blopex_fortran_opA
     external :: blopex_fortran_opT
 
@@ -34,7 +37,8 @@ contains
     call set_preconditioning(N, NZ, index, item, A, Diag)
 
     call blopex_lobpcg_solve_c(n_eigs, maxit, tol, N, &
-    & blopex_fortran_opA, blopex_fortran_opT, loglevel)
+      & blopex_fortran_opA, blopex_fortran_opT, loglevel, &
+      & eigen_val, eigen_vec)
   end subroutine blopex_lobpcg_solve
 
   subroutine set_preconditioning(N, NZ, index, item, A, Diag)

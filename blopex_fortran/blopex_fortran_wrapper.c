@@ -43,18 +43,20 @@ void OperatorTMultiVector(void *data, void *x, void *y) {
 }
 
 void blopex_lobpcg_solve_c_(
-    int    *n_eigs,       /* number of eigenvalues             */
-    int    *maxit,
-    double *tol,
-    int    *mat_n,
-    void   *matmult_opA,  /* Fortran routine for operator A    */
-    //void *matmult_opB, /* Fortran routine for operator B    */
-    void   *matmult_opT, /* Fortran routine for operator T    */
-    int    *log_level
+    int     *n_eigs,       /* number of eigenvalues             */
+    int     *maxit,
+    double  *tol,
+    int     *mat_n,
+    void    *matmult_opA,  /* Fortran routine for operator A    */
+    //void   *matmult_opB, /* Fortran routine for operator B    */
+    void    *matmult_opT, /* Fortran routine for operator T    */
+    int     *log_level,
+    double* eigval,
+    double* eigvec
   ) {
   int                        ierr;         /* for PETSc return code        */
   mv_MultiVectorPtr          eigenvectors; /* the eigenvectors             */
-  double*                    eigs;         /* the eigenvalues              */
+  //double*                    eigval;         /* the eigenvalues              */
   double*                    resid;        /* the residuals                */
   int                        iterations;   /* number of iterations         */
   lobpcg_Tolerance           lobpcg_tol;   /* residual tolerance           */
@@ -75,7 +77,7 @@ void blopex_lobpcg_solve_c_(
   lobpcg_tol.absolute = *tol;
   lobpcg_tol.relative = 1.0e-12;
 
-  eigs  = (double *)malloc(sizeof(double)*(*n_eigs));
+  //eigval  = (double *)malloc(sizeof(double)*(*n_eigs));
   resid = (double *)malloc(sizeof(double)*(*n_eigs));
 
   x = serial_Multi_VectorCreate(*mat_n, *n_eigs);
@@ -100,13 +102,15 @@ void blopex_lobpcg_solve_c_(
     *maxit,           /*input-max iterations */
     *log_level,       /*input-verbosity level */
     &iterations,      /*output-actual iterations */
-    eigs,             /*output-eigenvalues */
+    eigval,           /*output-eigenvalues */
     NULL,             /*output-eigenvalues history */
     0,                /*output-history global height */
     resid,            /*output-residual norms */
     NULL,             /*output-residual norms history */
     0                 /*output-history global height  */
   );
+
+  //eigvec
 
   return;
 }

@@ -6,7 +6,7 @@ program main
   integer(4) :: n_eigs, maxit, loglevel
   integer(4), allocatable :: index(:), item(:)
   real(8) :: tol
-  real(8), allocatable :: A(:)
+  real(8), allocatable :: A(:), eigen_val(:), eigen_vec(:,:)
   character :: fin*100
 
   write(*,"(a)")"* blopex fortran driver"
@@ -15,9 +15,44 @@ program main
 
   call input_from_matrix_market_csr(fin, N, NZ, index, item, A)
 
-  call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel)
+  allocate(eigen_val(n_eigs), source = 0.0d0)
+  allocate(eigen_vec(N,n_eigs), source = 0.0d0)
+
+  call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
+    & eigen_val, eigen_vec)
+
+  call output(N, n_eigs, eigen_val, eigen_vec)
 
 contains
+
+  subroutine output(N, n_eigs, eigen_val, eigen_vec)
+    implicit none
+    integer(4) :: N, n_eigs, i, j
+    real(8) :: eigen_val(:), eigen_vec(:,:)
+    character :: cnum*4
+
+    call system('if [ ! -d output ]; then (echo "* create output"; mkdir -p output); fi')
+
+    write(*,"(a)")"* eigen value"
+    write(*,"(1pe12.5)")eigen_val
+
+    open(20, file = "output/eigen_value.txt", status = "replace")
+    write(20,"(i4)")n_eigs
+    do i = 1, n_eigs
+      write(20, "(i4,1pe12.4)")i, eigen_val(i)
+    enddo
+    close(20)
+
+    do i = 1, n_eigs
+      write(cnum,"(i0)")i
+      open(20, file = "output/eigen_value."//trim(cnum)//".txt", status = "replace")
+      write(20,"(i8)")N
+      do j = 1, N
+        write(20, "(1pe12.4)")eigen_vec(j,i)
+      enddo
+      close(20)
+    enddo
+  end subroutine output
 
   subroutine get_input_arg(fin, n_eigs, maxit, loglevel, tol)
     implicit none
