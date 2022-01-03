@@ -89,6 +89,7 @@ contains
     character :: fin*100, ctemp*10
     logical :: is_first
 
+    is_first = .true.
     open(20, file = trim(fin), status = "old")
     in = 0
     do
