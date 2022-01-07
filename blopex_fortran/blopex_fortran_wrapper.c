@@ -20,8 +20,9 @@ BlopexInt dpotrf_ (
   lda, BlopexInt *info);
 
 void (*callback_matmult_opA)(void *, void*, void*);
-//void (*callback_matmult_opB)(void *, void*, void*);
+void (*callback_matmult_opB)(void *, void*, void*);
 void (*callback_matmult_opT)(void *, void*, void*);
+void (*callback_matmult_opY)(void *, void*, void*);
 
 void OperatorAMultiVector(void *data, void *x, void *y) {
   serial_Multi_Vector* a;
@@ -31,8 +32,13 @@ void OperatorAMultiVector(void *data, void *x, void *y) {
   callback_matmult_opA(data, a->data, b->data);
 }
 
-//void OperatorBMultiVector(void * data, void * x, void * y) {
-//}
+void OperatorBMultiVector(void * data, void * x, void * y) {
+  serial_Multi_Vector* a;
+  serial_Multi_Vector* b;
+  a = (serial_Multi_Vector*)x;
+  b = (serial_Multi_Vector*)y;
+  callback_matmult_opB(data, a->data, b->data);
+}
 
 void OperatorTMultiVector(void *data, void *x, void *y) {
   serial_Multi_Vector* a;
@@ -42,21 +48,29 @@ void OperatorTMultiVector(void *data, void *x, void *y) {
   callback_matmult_opT(data, a->data, b->data);
 }
 
+void OperatorYMultiVector(void *data, void *x, void *y) {
+  serial_Multi_Vector* a;
+  serial_Multi_Vector* b;
+  a = (serial_Multi_Vector*)x;
+  b = (serial_Multi_Vector*)y;
+  callback_matmult_opY(data, a->data, b->data);
+}
+
 void blopex_lobpcg_solve_c_(
     int     *n_eigs,       /* number of eigenvalues             */
     int     *maxit,
     double  *tol,
     int     *mat_n,
-    void    *matmult_opA,  /* Fortran routine for operator A    */
-    //void   *matmult_opB, /* Fortran routine for operator B    */
+    void    *matmult_opA, /* Fortran routine for operator A    */
+    void    *matmult_opB, /* Fortran routine for operator B    */
     void    *matmult_opT, /* Fortran routine for operator T    */
+    void    *matmult_opY, /* Fortran routine for operator T    */
     int     *log_level,
     double* eigval,
     double* eigvec
   ) {
   int                        ierr;         /* for PETSc return code        */
   mv_MultiVectorPtr          eigenvectors; /* the eigenvectors             */
-  //double*                    eigval;         /* the eigenvalues              */
   double*                    resid;        /* the residuals                */
   int                        iterations;   /* number of iterations         */
   lobpcg_Tolerance           lobpcg_tol;   /* residual tolerance           */
@@ -68,8 +82,13 @@ void blopex_lobpcg_solve_c_(
   iterations = 0;
 
   callback_matmult_opA = matmult_opA;
-  //callback_matmult_opB = matmult_opB;
+  callback_matmult_opB = matmult_opB;
   callback_matmult_opT = matmult_opT;
+  callback_matmult_opY = matmult_opY;
+
+  void *ptr_opB = NULL; // OperatorBMultiVector
+  void *ptr_opT = NULL; // OperatorTMultiVector
+  void *ptr_opY = NULL; // OperatorYMultiVector
 
   blap_fn.dpotrf = dpotrf_;
   blap_fn.dsygv = dsygv_;
@@ -77,12 +96,10 @@ void blopex_lobpcg_solve_c_(
   lobpcg_tol.absolute = *tol;
   lobpcg_tol.relative = 1.0e-12;
 
-  //eigval  = (double *)malloc(sizeof(double)*(*n_eigs));
   resid = (double *)malloc(sizeof(double)*(*n_eigs));
 
   x = serial_Multi_VectorCreate(*mat_n, *n_eigs);
   serial_Multi_VectorInitialize(x);
-  //serial_Multi_VectorSetRandomValues(x, 1);
   serial_Multi_VectorSetRandomValuesNormalized(x, 1);
 
   SerialSetupInterpreter(&ii);
@@ -92,11 +109,11 @@ void blopex_lobpcg_solve_c_(
     eigenvectors,
     &aux_data,
     OperatorAMultiVector,
-    NULL, //&aux_data,
-    NULL, //OperatorBMultiVector,
-    NULL, //&aux_data,
-    NULL, //OperatorTMultiVector,
-    NULL,             /*input-matrix Y */
+    &aux_data,
+    ptr_opB,
+    &aux_data,
+    ptr_opT,
+    ptr_opY,
     blap_fn,          /*input-lapack functions */
     lobpcg_tol,       /*input-tolerances */
     *maxit,           /*input-max iterations */
