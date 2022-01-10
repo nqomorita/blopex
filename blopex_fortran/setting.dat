@@ -1,5 +1,5 @@
-6 !> the number of eigen vector
-1000 !> maximum iteration
+2 !> the number of eigen vector
+2000 !> maximum iteration
 1.0e-2 !> threshold
 1 !> log level (0: none, 1:standard, 2:verbose)
-1 !> precond (0: none, 1:diag)
+2 !> precond (0: none, 1:diag, 2:sor)

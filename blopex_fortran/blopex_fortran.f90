@@ -1,6 +1,6 @@
 module blopex_fortran_hold_vars
   use iso_c_binding
-  integer(c_int) :: N_hold, NDOF_hold, M_hold
+  integer(c_int) :: N_hold, NDOF_hold, M_hold, prec_type_hold
   integer(c_int), pointer :: index_hold(:), item_hold(:)
   real(c_double), pointer :: A_hold(:)
   real(c_double), pointer :: B_hold(:)
@@ -16,10 +16,10 @@ contains
 
   subroutine blopex_lobpcg_solve( &
       & N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
-      & eigen_val, eigen_vec, is_prec, B)
+      & eigen_val, eigen_vec, prec_type, B)
     implicit none
     integer(c_int) :: N, NZ, i, j
-    integer(c_int) :: is_B, is_T
+    integer(c_int) :: is_B, is_T, prec_type
     integer(c_int), target :: index(0:N), item(NZ)
     integer(c_int) :: n_eigs, maxit, mat_n, loglevel
     real(c_double) :: tol
@@ -28,7 +28,6 @@ contains
     real(c_double) :: eigen_vec(N,n_eigs)
     real(c_double) :: eigen_vec_temp(N*n_eigs)
     real(c_double), optional :: B(N)
-    logical :: is_prec
     external :: blopex_fortran_opA
     external :: blopex_fortran_opB
     external :: blopex_fortran_opT
@@ -49,8 +48,9 @@ contains
     endif
 
     is_T = 0
-    if(is_prec)then
+    if(prec_type > 0)then
       is_T = 1
+      prec_type_hold = prec_type
       call set_preconditioning(N, NZ, index, item, A, Diag)
     endif
 
@@ -140,45 +140,49 @@ subroutine blopex_fortran_opT(dum, a, b)
   real(c_double) :: s
   real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
 
-  do k = 1, M_hold
-    shift = N_hold*(k-1)
-    do i = 1, N_hold
-      s = a(i+shift)
-      jS = index_hold(i-1) + 1
-      jE = index_hold(i  )
-      do j = jS, jE
-        jn = item_hold(j)
-        if(jn < i)then
-          s = s - A_hold(j)*a(jn+shift)
-        endif
+  if(prec_type_hold == 1)then
+    !> diag
+    do i = 1, M_hold
+      shift = N_hold*(i-1)
+      do j = 1, N_hold
+        b(j+shift) = a(j+shift)*Diag(j)
       enddo
-      a(i+shift) = s*Diag(i)
     enddo
 
-    do i = 1, N_hold
-      a(i+shift) = a(i+shift)/Diag(i)
-    enddo
-
-    do i = N_hold, 1, -1
-      s = a(i+shift)
-      jS = index_hold(i-1) + 1
-      jE = index_hold(i  )
-      do j = jE, jS, -1
-        jn = item_hold(j)
-        if(i < jn)then
-          s = s - A_hold(j)*a(jn+shift)
-        endif
+  elseif(prec_type_hold == 2)then
+    !> sor
+    do k = 1, M_hold
+      shift = N_hold*(k-1)
+      do i = 1, N_hold
+        s = a(i+shift)
+        jS = index_hold(i-1) + 1
+        jE = index_hold(i  )
+        do j = jS, jE
+          jn = item_hold(j)
+          if(jn < i)then
+            s = s - A_hold(j)*a(jn+shift)
+          endif
+        enddo
+        a(i+shift) = s*Diag(i)
       enddo
-      a(i+shift) = s*Diag(i)
-      b(i+shift) = a(i+shift)
-    enddo
-  enddo
 
-  !> diag
-  !do i = 1, M_hold
-  !  shift = N_hold*(i-1)
-  !  do j = 1, N_hold
-  !    b(j+shift) = a(j+shift)*Diag(j)
-  !  enddo
-  !enddo
+      do i = 1, N_hold
+        a(i+shift) = a(i+shift)/Diag(i)
+      enddo
+
+      do i = N_hold, 1, -1
+        s = a(i+shift)
+        jS = index_hold(i-1) + 1
+        jE = index_hold(i  )
+        do j = jE, jS, -1
+          jn = item_hold(j)
+          if(i < jn)then
+            s = s - A_hold(j)*a(jn+shift)
+          endif
+        enddo
+        a(i+shift) = s*Diag(i)
+        b(i+shift) = a(i+shift)
+      enddo
+    enddo
+  endif
 end subroutine blopex_fortran_opT

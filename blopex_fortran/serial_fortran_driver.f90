@@ -3,14 +3,13 @@ program main
   use blopex_fortran_driver
   implicit none
   integer(4) :: N, NZ
-  integer(4) :: n_eigs, maxit, loglevel, n_bc
+  integer(4) :: n_eigs, maxit, loglevel, prec_type, n_bc
   integer(4), allocatable :: index(:), item(:), i_bc(:)
   real(8) :: tol, t1, t2, t3, t4
   real(8), allocatable :: A(:), B(:), eigen_val(:), eigen_vec(:,:)
   character :: finA*100, finB*100, finBC*100
   logical :: is_B = .false.
   logical :: is_BC = .false.
-  logical :: is_prec = .false.
 
   write(*,"(a)")"* blopex fortran driver"
 
@@ -34,10 +33,10 @@ program main
 
   if(is_B)then
     call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
-      & eigen_val, eigen_vec, is_prec, B)
+      & eigen_val, eigen_vec, prec_type, B)
   else
     call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
-      & eigen_val, eigen_vec, is_prec)
+      & eigen_val, eigen_vec, prec_type)
   endif
 
   call cpu_time(t3)
@@ -157,10 +156,8 @@ contains
       read(10,*)maxit
       read(10,*)tol
       read(10,*)loglevel
-      read(10,*)prec
+      read(10,*)prec_type
     close(10)
-
-    if(prec == 1) is_prec = .true.
 
     write(*,"(a,i12)")     "* n_eigs  :", n_eigs
     write(*,"(a,i12)")     "* maxiter :", maxit
@@ -168,7 +165,7 @@ contains
     write(*,"(a,i12)")     "* loglevel:", loglevel
     write(*,"(a,l12)")     "* read BC :", is_BC
     write(*,"(a,l12)")     "* read B  :", is_B
-    write(*,"(a,l12)")     "* apply M :", is_prec
+    write(*,"(a,i12)")     "* apply M :", prec_type
   end subroutine get_input_arg
 
   subroutine input_from_matrix_market_mm(fin, N, A)
