@@ -136,46 +136,49 @@ subroutine blopex_fortran_opT(dum, a, b)
   use blopex_fortran_hold_vars
   use iso_c_binding
   implicit none
-  integer(c_int) :: dum, i, j, shift
+  integer(c_int) :: dum, i, j, jS, jE, in, jn, k, shift
+  real(c_double) :: s
   real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
 
-!  !do k = 1, M_hold
-!    do i = 1, N
-!      ST = a(i)
-!      jS = index(i-1) + 1
-!      jE = index(i  )
-!      do j = jS, jE
-!        jn = item(j)
-!        if(jn < i)then
-!          ST = ST - A(j)*a(jn)
-!        endif
-!      enddo
-!      a(i) = ST*Diag(i)
-!    enddo
-!
-!    !do i = 1, N
-!    !  a()
-!    !enddo
-!
-!    do i = N, 1, -1
-!      ST = 0.0d0
-!      jS = index(i-1) + 1
-!      jE = index(i  )
-!      do j = jE, jS, -1
-!        jn = item(j)
-!        if(i < jn)then
-!          ST = ST + A(j)*XT(jn)
-!        endif
-!      enddo
-!      !Y(i) = Y(i) - XT(k)
-!    enddo
-!  !enddo
+  do k = 1, M_hold
+    shift = N_hold*(k-1)
+    do i = 1, N_hold
+      s = a(i+shift)
+      jS = index_hold(i-1) + 1
+      jE = index_hold(i  )
+      do j = jS, jE
+        jn = item_hold(j)
+        if(jn < i)then
+          s = s - A_hold(j)*a(jn+shift)
+        endif
+      enddo
+      a(i+shift) = s*Diag(i)
+    enddo
 
-  !> diag
-  do i = 1, M_hold
-    shift = N_hold*(i-1)
-    do j = 1, N_hold
-      b(j+shift) = a(j+shift)*Diag(j)
+    do i = 1, N_hold
+      a(i+shift) = a(i+shift)/Diag(i)
+    enddo
+
+    do i = N_hold, 1, -1
+      s = a(i+shift)
+      jS = index_hold(i-1) + 1
+      jE = index_hold(i  )
+      do j = jE, jS, -1
+        jn = item_hold(j)
+        if(i < jn)then
+          s = s - A_hold(j)*a(jn+shift)
+        endif
+      enddo
+      a(i+shift) = s*Diag(i)
+      b(i+shift) = a(i+shift)
     enddo
   enddo
+
+  !> diag
+  !do i = 1, M_hold
+  !  shift = N_hold*(i-1)
+  !  do j = 1, N_hold
+  !    b(j+shift) = a(j+shift)*Diag(j)
+  !  enddo
+  !enddo
 end subroutine blopex_fortran_opT
