@@ -5,7 +5,7 @@ program main
   integer(4) :: N, NZ
   integer(4) :: n_eigs, maxit, loglevel, n_bc
   integer(4), allocatable :: index(:), item(:), i_bc(:)
-  real(8) :: tol
+  real(8) :: tol, t1, t2, t3, t4
   real(8), allocatable :: A(:), B(:), eigen_val(:), eigen_vec(:,:)
   character :: finA*100, finB*100, finBC*100
   logical :: is_B = .false.
@@ -13,6 +13,8 @@ program main
   logical :: is_prec = .false.
 
   write(*,"(a)")"* blopex fortran driver"
+
+  call cpu_time(t1)
 
   call get_input_arg(finA, finB, finBC, n_eigs, maxit, loglevel, tol, is_B, is_BC)
 
@@ -28,6 +30,8 @@ program main
   allocate(eigen_val(n_eigs), source = 0.0d0)
   allocate(eigen_vec(N,n_eigs), source = 0.0d0)
 
+  call cpu_time(t2)
+
   if(is_B)then
     call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
       & eigen_val, eigen_vec, is_prec, B)
@@ -36,12 +40,21 @@ program main
       & eigen_val, eigen_vec, is_prec)
   endif
 
+  call cpu_time(t3)
+
   if(is_BC)then
     call convet_eigval(N, n_bc, i_bc, n_eigs, eigen_vec)
     call output(N, n_eigs, eigen_val, eigen_vec)
   else
     call output(N, n_eigs, eigen_val, eigen_vec)
   endif
+
+  call cpu_time(t4)
+
+  write(*,"(a,1pe12.5)") "* input  time:", t2-t1
+  write(*,"(a,1pe12.5)") "* LOBPCG time:", t3-t2
+  write(*,"(a,1pe12.5)") "* output time:", t4-t3
+  write(*,"(a,1pe12.5)") "* total  time:", t4-t1
 
 contains
 
