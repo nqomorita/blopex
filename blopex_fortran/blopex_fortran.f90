@@ -103,7 +103,6 @@ subroutine blopex_fortran_opA(dum, a, b)
   implicit none
   integer(c_int) :: dum, i, jS, jE, j, in, k, shift
   real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
-
   b = 0.0d0
   do k = 1, M_hold
     shift = N_hold*(k-1)
@@ -172,10 +171,11 @@ subroutine blopex_fortran_opT(dum, a, b)
 !    enddo
 !  !enddo
 
-    do i = 1, M_hold
-      shift = N_hold*(i-1)
-      do j = 1, N_hold
-        b(j+shift) = a(j+shift)*Diag(j)
-      enddo
+  !> diag
+  do i = 1, M_hold
+    shift = N_hold*(i-1)
+    do j = 1, N_hold
+      b(j+shift) = a(j+shift)*Diag(j)
     enddo
+  enddo
 end subroutine blopex_fortran_opT

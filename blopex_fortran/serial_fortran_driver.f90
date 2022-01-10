@@ -3,29 +3,45 @@ program main
   use blopex_fortran_driver
   implicit none
   integer(4) :: N, NZ
-  integer(4) :: n_eigs, maxit, loglevel
-  integer(4), allocatable :: index(:), item(:)
+  integer(4) :: n_eigs, maxit, loglevel, n_bc
+  integer(4), allocatable :: index(:), item(:), i_bc(:)
   real(8) :: tol
   real(8), allocatable :: A(:), B(:), eigen_val(:), eigen_vec(:,:)
-  character :: finA*100, finB*100
-  logical :: is_B
+  character :: finA*100, finB*100, finBC*100
+  logical :: is_B = .false.
+  logical :: is_BC = .false.
   logical :: is_prec = .false.
 
   write(*,"(a)")"* blopex fortran driver"
 
-  call get_input_arg(finA, finB, n_eigs, maxit, loglevel, tol, is_B)
+  call get_input_arg(finA, finB, finBC, n_eigs, maxit, loglevel, tol, is_B, is_BC)
 
-  call input_from_matrix_market_csr(finA, N, NZ, index, item, A)
-
-  if(is_B) call input_from_matrix_B(finB, N, B)
+  if(is_BC)then
+    call input_BC(finBC, n_bc, i_bc)
+    call input_from_matrix_market_csr_bc(finA, N, NZ, index, item, A, n_bc, i_bc)
+    !if(is_B) call input_from_matrix_B_bc(finB, N, B, n_bc, i_bc)
+  else
+    call input_from_matrix_market_csr(finA, N, NZ, index, item, A)
+    if(is_B) call input_from_matrix_B(finB, N, B)
+  endif
 
   allocate(eigen_val(n_eigs), source = 0.0d0)
   allocate(eigen_vec(N,n_eigs), source = 0.0d0)
 
-  call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
-    & eigen_val, eigen_vec, is_prec, B)
+  if(is_B)then
+    call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
+      & eigen_val, eigen_vec, is_prec, B)
+  else
+    call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
+      & eigen_val, eigen_vec, is_prec)
+  endif
 
-  call output(N, n_eigs, eigen_val, eigen_vec)
+  if(is_BC)then
+    !call convet_eigval(N, n_bc, i_bc, eigen_vec)
+    call output(N, n_eigs, eigen_val, eigen_vec)
+  else
+    call output(N, n_eigs, eigen_val, eigen_vec)
+  endif
 
 contains
 
@@ -58,20 +74,26 @@ contains
     enddo
   end subroutine output
 
-  subroutine get_input_arg(finA, finB, n_eigs, maxit, loglevel, tol, is_B)
+  subroutine get_input_arg(finA, finB, finBC, n_eigs, maxit, loglevel, tol, is_B, is_BC)
     implicit none
     integer(4) :: count
-    integer(4) :: n_eigs, maxit, loglevel
+    integer(4) :: n_eigs, maxit, loglevel, prec
     real(8) :: tol
-    character :: finA*100, finB*100
-    logical :: is_B
+    character :: finA*100, finB*100, finBC*100
+    logical :: is_B, is_BC
 
     count = iargc()
     if(count == 1)then
       call getarg(1, finA)
     elseif(count == 2)then
       call getarg(1, finA)
-      call getarg(2, finB)
+      call getarg(2, finBC)
+      is_BC = .true.
+    elseif(count == 3)then
+      call getarg(1, finA)
+      call getarg(2, finBC)
+      call getarg(3, finB)
+      is_BC = .true.
       is_B = .true.
     else
       stop "please enter input file name of matrix A and matrix B (optional)"
@@ -82,12 +104,16 @@ contains
       read(10,*)maxit
       read(10,*)tol
       read(10,*)loglevel
+      read(10,*)prec
     close(10)
+
+    if(prec == 1) is_prec = .true.
 
     write(*,"(a,i12)")     "* n_eigs  :", n_eigs
     write(*,"(a,i12)")     "* maxiter :", maxit
     write(*,"(a,1pe12.5)") "* tol     :", tol
     write(*,"(a,i12)")     "* loglevel:", loglevel
+    write(*,"(a,l12)")     "* read BC :", is_BC
     write(*,"(a,l12)")     "* read B  :", is_B
     write(*,"(a,l12)")     "* apply M :", is_prec
   end subroutine get_input_arg
@@ -162,6 +188,86 @@ contains
       index(i) = index(i) + index(i-1)
     enddo
   end subroutine input_from_matrix_market_csr
+
+  subroutine input_from_matrix_market_csr_bc(fin, N, NZ, index, item, A, n_bc, i_bc)
+    implicit none
+    integer(4) :: N, NZ, i, j, in, n_bc, ip, jp
+    integer(4) :: N_new
+    integer(4) :: i_bc(:)
+    integer(4), allocatable :: index(:), item(:), perm(:)
+    real(8), allocatable :: A(:), tmp(:,:)
+    logical, allocatable :: is_use(:)
+    character :: fin*100
+
+    call input_from_matrix_market_mm(fin, N, tmp)
+
+    allocate(is_use(N), source = .true.)
+    do i = 1, n_bc
+      in = i_bc(i)
+      is_use(in) = .false.
+    enddo
+
+    N_new = N - n_bc
+    allocate(perm(N), source = 0)
+    in = 1
+    do i = 1, N
+      if(.not. is_use(i)) cycle
+      perm(i) = in
+      in = in + 1
+    enddo
+
+    NZ = 0
+    do i = 1, N
+      if(.not. is_use(i)) cycle
+      do j = 1, N
+        if(.not. is_use(j)) cycle
+        if(dabs(tmp(j,i)) > 1.0d-10) NZ = NZ + 1
+      enddo
+    enddo
+
+    allocate(index(0:N_new), source = 0)
+    allocate(item(NZ), source = 0)
+    allocate(A(NZ), source = 0.0d0)
+
+    in = 0
+    do i = 1, N
+      if(.not. is_use(i)) cycle
+      do j = 1, N
+        if(.not. is_use(j)) cycle
+        if(dabs(tmp(j,i)) > 1.0d-10)then
+          in = in + 1
+          ip = perm(i)
+          index(ip) = index(ip) + 1
+          jp = perm(j)
+          item(in) = jp
+          A(in) = tmp(j,i)
+        endif
+      enddo
+    enddo
+
+    do i = 1, N_new
+      index(i) = index(i) + index(i-1)
+    enddo
+
+    N = N_new
+  end subroutine input_from_matrix_market_csr_bc
+
+  subroutine input_BC(fin, n_bc, i_bc)
+    implicit none
+    integer(4) :: n_bc, i, n, ndof, id, idof
+    integer(4), allocatable :: i_bc(:)
+    real(8) :: val
+    character :: fin*100
+
+    open(20, file = trim(fin), status = "old")
+      read(20,*)n_bc, ndof
+      allocate(i_bc(n_bc), source = 0)
+      do i = 1, n_bc
+        read(20,*) id, idof, val
+        i_bc(i) = ndof*(id-1) + idof
+      enddo
+    close(20)
+  end subroutine input_BC
 
   subroutine input_from_matrix_B(fin, N, B)
     implicit none
