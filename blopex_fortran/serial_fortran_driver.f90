@@ -37,13 +37,53 @@ program main
   endif
 
   if(is_BC)then
-    !call convet_eigval(N, n_bc, i_bc, eigen_vec)
+    call convet_eigval(N, n_bc, i_bc, n_eigs, eigen_vec)
     call output(N, n_eigs, eigen_val, eigen_vec)
   else
     call output(N, n_eigs, eigen_val, eigen_vec)
   endif
 
 contains
+
+  subroutine convet_eigval(N, n_bc, i_bc, n_eigs, eigen_vec)
+    implicit none
+    integer(4) :: N, n_bc, i_bc(:), N_org, n_eigs, i, j, in, ip
+    real(8), allocatable :: eigen_vec(:,:)
+    integer(4), allocatable :: perm(:)
+    real(8), allocatable :: temp(:,:)
+    logical, allocatable :: is_use(:)
+
+    allocate(temp(N,n_eigs), source = 0.0d0)
+    temp = eigen_vec
+    deallocate(eigen_vec)
+
+    N_org = N + n_bc
+    allocate(eigen_vec(N_org,n_eigs), source = 0.0d0)
+
+    allocate(is_use(N_org), source = .true.)
+    do i = 1, n_bc
+      ip = i_bc(i)
+      is_use(ip) = .false.
+    enddo
+
+    allocate(perm(N_org), source = 0)
+    in = 1
+    do i = 1, N_org
+      if(.not. is_use(i)) cycle
+      perm(i) = in
+      in = in + 1
+    enddo
+
+    do j = 1, n_eigs
+      do i = 1, N_org
+        ip = perm(i)
+        if(ip == 0) cycle
+        eigen_vec(i,j) = temp(ip,j)
+      enddo
+    enddo
+
+    N = N_org
+  end subroutine convet_eigval
 
   subroutine output(N, n_eigs, eigen_val, eigen_vec)
     implicit none
