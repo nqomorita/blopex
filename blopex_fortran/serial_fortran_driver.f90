@@ -19,7 +19,7 @@ program main
   if(is_BC)then
     call input_BC(finBC, n_bc, i_bc)
     call input_from_matrix_market_csr_bc(finA, N, NZ, index, item, A, n_bc, i_bc)
-    !if(is_B) call input_from_matrix_B_bc(finB, N, B, n_bc, i_bc)
+    if(is_B) call input_from_matrix_B_bc(finB, N, B, n_bc, i_bc)
   else
     call input_from_matrix_market_csr(finA, N, NZ, index, item, A)
     if(is_B) call input_from_matrix_B(finB, N, B)
@@ -308,6 +308,43 @@ contains
       enddo
     close(20)
   end subroutine input_BC
+
+  subroutine input_from_matrix_B_bc(fin, N, B, n_bc, i_bc)
+    implicit none
+    integer(4) :: N, L, i, n_bc, i_bc(:), in, ip
+    real(8) :: val
+    integer(4), allocatable :: perm(:)
+    real(8), allocatable :: B(:)
+    logical, allocatable :: is_use(:)
+    character :: fin*100
+
+    allocate(is_use(N+n_bc), source = .true.)
+    do i = 1, n_bc
+      in = i_bc(i)
+      is_use(in) = .false.
+    enddo
+
+    allocate(perm(N+n_bc), source = 0)
+    in = 1
+    do i = 1, N+n_bc
+      if(.not. is_use(i)) cycle
+      perm(i) = in
+      in = in + 1
+    enddo
+
+    allocate(B(N), source = 0.0d0)
+
+    open(20, file = trim(fin), status = "old")
+      read(20,*)L
+      if(L /= N+n_bc) stop "input_from_matrix_B_bc: "
+      do i = 1, L
+        read(20,*) val
+        ip = perm(i)
+        if(ip == 0) cycle
+        B(ip) = val
+      enddo
+    close(20)
+  end subroutine input_from_matrix_B_bc
 
   subroutine input_from_matrix_B(fin, N, B)
     implicit none
