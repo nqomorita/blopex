@@ -14,10 +14,12 @@ module blopex_fortran_driver
 
 contains
 
-  subroutine blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
-      & eigen_val, eigen_vec)
+  subroutine blopex_lobpcg_solve( &
+      & N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
+      & eigen_val, eigen_vec, is_prec, B)
     implicit none
     integer(c_int) :: N, NZ, i, j
+    integer(c_int) :: is_B, is_T
     integer(c_int), target :: index(0:N), item(NZ)
     integer(c_int) :: n_eigs, maxit, mat_n, loglevel
     real(c_double) :: tol
@@ -25,24 +27,36 @@ contains
     real(c_double) :: eigen_val(n_eigs)
     real(c_double) :: eigen_vec(N,n_eigs)
     real(c_double) :: eigen_vec_temp(N*n_eigs)
+    real(c_double), optional :: B(N)
+    logical :: is_prec
     external :: blopex_fortran_opA
     external :: blopex_fortran_opB
     external :: blopex_fortran_opT
-    external :: blopex_fortran_opY
 
     if(N < n_eigs) n_eigs = N
 
+    !call set_matvec_A(N, n_eigs, index, item, A)
     N_hold = N
     M_hold = n_eigs
     index_hold => index
     item_hold  => item
     A_hold => A
 
-    call set_preconditioning(N, NZ, index, item, A, Diag)
+    is_B = 0
+    if(present(B))then
+      is_B = 1
+      call set_matvec_B(N, B)
+    endif
+
+    is_T = 0
+    if(is_prec)then
+      is_T = 1
+      call set_preconditioning(N, NZ, index, item, A, Diag)
+    endif
 
     call blopex_lobpcg_solve_c(n_eigs, maxit, tol, N, &
-      & blopex_fortran_opA, blopex_fortran_opB, &
-      & blopex_fortran_opT, blopex_fortran_opY, &
+      & blopex_fortran_opA, blopex_fortran_opB, blopex_fortran_opT, &
+      & is_B, is_T, &
       & loglevel, eigen_val, eigen_vec_temp)
 
     do i = 1, n_eigs
@@ -51,6 +65,13 @@ contains
       enddo
     enddo
   end subroutine blopex_lobpcg_solve
+
+  subroutine set_matvec_B(N, B)
+    implicit none
+    integer(c_int) :: N
+    real(c_double), target :: B(N)
+    B_hold => B
+  end subroutine set_matvec_B
 
   subroutine set_preconditioning(N, NZ, index, item, A, Diag)
     implicit none
@@ -104,18 +125,13 @@ subroutine blopex_fortran_opB(dum, a, b)
   integer(c_int) :: dum, i, j, shift
   real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
 
-b = a
+  do j = 1, M_hold
+    shift = N_hold*(j-1)
+    do i = 1, N_hold
+      b(i+shift) = B_hold(i)*a(i+shift)
+    enddo
+  enddo
 end subroutine blopex_fortran_opB
-
-subroutine blopex_fortran_opY(dum, a, b)
-  use blopex_fortran_hold_vars
-  use iso_c_binding
-  implicit none
-  integer(c_int) :: dum, i, j, shift
-  real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
-
-b = a
-end subroutine blopex_fortran_opY
 
 subroutine blopex_fortran_opT(dum, a, b)
   use blopex_fortran_hold_vars
@@ -124,7 +140,6 @@ subroutine blopex_fortran_opT(dum, a, b)
   integer(c_int) :: dum, i, j, shift
   real(c_double) :: a(N_hold*M_hold), b(N_hold*M_hold)
 
-b = a
 !  !do k = 1, M_hold
 !    do i = 1, N
 !      ST = a(i)
@@ -156,17 +171,11 @@ b = a
 !      !Y(i) = Y(i) - XT(k)
 !    enddo
 !  !enddo
-!
-!  !if(.false.)then
-!  !  b = a
-!  !else
-!    do i = 1, M_hold
-!      shift = N_hold*(i-1)
-!      do j = 1, N_hold
-!        b(j+shift) = a(j+shift)*Diag(j)
-!      enddo
-!    enddo
-  !else
-!
-!  !endif
+
+    do i = 1, M_hold
+      shift = N_hold*(i-1)
+      do j = 1, N_hold
+        b(j+shift) = a(j+shift)*Diag(j)
+      enddo
+    enddo
 end subroutine blopex_fortran_opT

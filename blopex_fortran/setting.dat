@@ -1,4 +1,4 @@
-3 !> the number of eigen vector
-100 !> maximum iteration
-1.0e-8 !> threshold
+6 !> the number of eigen vector
+1000 !> maximum iteration
+1.0e-2 !> threshold
 1 !> log level (0: none, 1:standard, 2:verbose)

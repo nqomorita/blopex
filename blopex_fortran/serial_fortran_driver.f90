@@ -6,20 +6,24 @@ program main
   integer(4) :: n_eigs, maxit, loglevel
   integer(4), allocatable :: index(:), item(:)
   real(8) :: tol
-  real(8), allocatable :: A(:), eigen_val(:), eigen_vec(:,:)
-  character :: fin*100
+  real(8), allocatable :: A(:), B(:), eigen_val(:), eigen_vec(:,:)
+  character :: finA*100, finB*100
+  logical :: is_B
+  logical :: is_prec = .false.
 
   write(*,"(a)")"* blopex fortran driver"
 
-  call get_input_arg(fin, n_eigs, maxit, loglevel, tol)
+  call get_input_arg(finA, finB, n_eigs, maxit, loglevel, tol, is_B)
 
-  call input_from_matrix_market_csr(fin, N, NZ, index, item, A)
+  call input_from_matrix_market_csr(finA, N, NZ, index, item, A)
+
+  if(is_B) call input_from_matrix_B(finB, N, B)
 
   allocate(eigen_val(n_eigs), source = 0.0d0)
   allocate(eigen_vec(N,n_eigs), source = 0.0d0)
 
   call blopex_lobpcg_solve(N, NZ, index, item, A, n_eigs, maxit, tol, loglevel, &
-    & eigen_val, eigen_vec)
+    & eigen_val, eigen_vec, is_prec, B)
 
   call output(N, n_eigs, eigen_val, eigen_vec)
 
@@ -54,18 +58,23 @@ contains
     enddo
   end subroutine output
 
-  subroutine get_input_arg(fin, n_eigs, maxit, loglevel, tol)
+  subroutine get_input_arg(finA, finB, n_eigs, maxit, loglevel, tol, is_B)
     implicit none
     integer(4) :: count
     integer(4) :: n_eigs, maxit, loglevel
     real(8) :: tol
-    character :: fin*100
+    character :: finA*100, finB*100
+    logical :: is_B
 
     count = iargc()
     if(count == 1)then
-      call getarg(1, fin)
+      call getarg(1, finA)
+    elseif(count == 2)then
+      call getarg(1, finA)
+      call getarg(2, finB)
+      is_B = .true.
     else
-      stop "please enter input file name"
+      stop "please enter input file name of matrix A and matrix B (optional)"
     endif
 
     open(10, file = "setting.dat", status = "old")
@@ -79,6 +88,8 @@ contains
     write(*,"(a,i12)")     "* maxiter :", maxit
     write(*,"(a,1pe12.5)") "* tol     :", tol
     write(*,"(a,i12)")     "* loglevel:", loglevel
+    write(*,"(a,l12)")     "* read B  :", is_B
+    write(*,"(a,l12)")     "* apply M :", is_prec
   end subroutine get_input_arg
 
   subroutine input_from_matrix_market_mm(fin, N, A)
@@ -151,4 +162,20 @@ contains
       index(i) = index(i) + index(i-1)
     enddo
   end subroutine input_from_matrix_market_csr
+
+  subroutine input_from_matrix_B(fin, N, B)
+    implicit none
+    integer(4) :: N, i
+    real(8), allocatable :: B(:)
+    character :: fin*100
+
+    open(20, file = trim(fin), status = "old")
+      read(20,*)i
+      if(i /= N) stop "input_from_matrix_B: "
+      allocate(B(N), source = 0.0d0)
+      do i = 1, N
+        read(20,*) B(i)
+      enddo
+    close(20)
+  end subroutine input_from_matrix_B
 end program main
